@@ -1,10 +1,11 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Bot, Send, Loader2 } from 'lucide-react';
+import { Bot, Send, Loader2, Mic, MicOff, Sparkles } from 'lucide-react';
 import AIService from '@/services/AIService';
 import VoiceControls from './VoiceControls';
 import { voiceService } from '@/services/VoiceService';
+import { CodingProblem } from '@/data/problems';
 
 interface Message {
   id: string;
@@ -15,8 +16,6 @@ interface Message {
   isQuestion?: boolean;
 }
 
-import { CodingProblem } from '@/data/problems';
-
 interface EnhancedChatInterfaceProps {
   onHintUsed?: () => void;
   onQuestionAsked?: () => void;
@@ -26,25 +25,30 @@ interface EnhancedChatInterfaceProps {
   interviewPhase?: string;
   aiCodeResponse?: string;
   onCodeResponseHandled?: () => void;
+  resumeContext?: string;
+  premadeQuestions?: string[];
 }
 
-export default function EnhancedChatInterface({ 
-  onHintUsed, 
-  onQuestionAsked, 
-  currentCode = '', 
+export default function EnhancedChatInterface({
+  onHintUsed,
+  onQuestionAsked,
+  currentCode = '',
   problemTitle = 'Find Duplicates in Array',
   currentProblem,
   interviewPhase = 'initial',
   aiCodeResponse = '',
-  onCodeResponseHandled
+  onCodeResponseHandled,
+  resumeContext = ''
 }: EnhancedChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>([]);
-  
+
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [aiService] = useState(() => new AIService());
   const [isSpeakingEnabled] = useState(true);
+  const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
+  const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
   // Initialize voice service on mount
   useEffect(() => {
@@ -57,7 +61,7 @@ export default function EnhancedChatInterface({
         console.error('❌ Voice service initialization failed in chat interface:', error);
       }
     };
-    
+
     initializeVoice();
   }, []);
 
@@ -70,14 +74,14 @@ export default function EnhancedChatInterface({
             currentProblem.title,
             currentProblem.description
           );
-          
+
           const initialMessage: Message = {
             id: '1',
             type: 'assistant',
             content: greeting,
             timestamp: new Date()
           };
-          
+
           setMessages([initialMessage]);
         } catch (error) {
           console.error('Error getting initial greeting:', error);
@@ -91,7 +95,7 @@ export default function EnhancedChatInterface({
           setMessages([fallbackMessage]);
         }
       };
-      
+
       sendInitialGreeting();
     }
   }, [currentProblem, interviewPhase, messages.length, problemTitle, aiService]);
@@ -105,14 +109,18 @@ export default function EnhancedChatInterface({
         content: aiCodeResponse,
         timestamp: new Date()
       };
-      
+
       setMessages(prev => [...prev, codeResponseMessage]);
-      
+
       // Speak the AI response if voice is enabled
       if (isSpeakingEnabled && voiceService.isSupported().speechSynthesis) {
-        voiceService.speakText(aiCodeResponse).catch(console.error);
+        setIsAiSpeaking(true);
+        voiceService.speakText(aiCodeResponse, {
+          onEnd: () => setIsAiSpeaking(false),
+          onError: () => setIsAiSpeaking(false)
+        }).catch(() => setIsAiSpeaking(false));
       }
-      
+
       onCodeResponseHandled(); // Clear the response
     }
   }, [aiCodeResponse, onCodeResponseHandled, isSpeakingEnabled]);
@@ -124,7 +132,11 @@ export default function EnhancedChatInterface({
       if (lastMessage.type === 'assistant' && isSpeakingEnabled && voiceService.isSupported().speechSynthesis) {
         // Only speak new AI messages (not initial messages or code responses which are handled above)
         if (!aiCodeResponse) {
-          voiceService.speakText(lastMessage.content).catch(console.error);
+          setIsAiSpeaking(true);
+          voiceService.speakText(lastMessage.content, {
+            onEnd: () => setIsAiSpeaking(false),
+            onError: () => setIsAiSpeaking(false)
+          }).catch(() => setIsAiSpeaking(false));
         }
       }
     }
@@ -135,7 +147,7 @@ export default function EnhancedChatInterface({
 
     // Detect message type using AI service
     const messageAnalysis = aiService.detectMessageType(inputMessage);
-    
+
     const userMessage: Message = {
       id: Date.now().toString(),
       type: 'user',
@@ -168,7 +180,7 @@ export default function EnhancedChatInterface({
       const aiResponse = await aiService.getInterviewResponse(
         currentInput,
         currentCode,
-        `Problem: ${problemTitle}`,
+        `Problem: ${problemTitle}\n\nRESUME CONTEXT:\n${resumeContext}`,
         conversationHistory
       );
 
@@ -208,10 +220,10 @@ export default function EnhancedChatInterface({
     }
 
     setIsAnalyzing(true);
-    
+
     try {
       const analysis = await aiService.analyzeCodeComplexity(currentCode);
-      
+
       const analysisMessage: Message = {
         id: Date.now().toString(),
         type: 'assistant',
@@ -247,8 +259,6 @@ export default function EnhancedChatInterface({
     }
   };
 
-
-
   const handleKeyPress = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -261,80 +271,68 @@ export default function EnhancedChatInterface({
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-black">
       {/* Quick Actions */}
-      <div className="p-3 border-b border-gray-200 bg-gradient-to-r from-purple-50 to-blue-50">
-        <div className="text-xs font-medium text-gray-700 mb-2">💬 Common Interview Responses:</div>
+      <div className="p-4 border-b border-white/10 bg-white/5">
+        <div className="text-xs font-medium text-gray-400 mb-3 uppercase tracking-wider">Suggested Responses</div>
         <div className="flex flex-wrap gap-2">
-          <button 
+          <button
             onClick={() => addPredefinedMessage("I'm thinking about using nested loops for this problem")}
-            className="text-xs px-3 py-1.5 bg-white border border-purple-200 hover:bg-purple-50 text-purple-700 rounded-lg transition-colors shadow-sm"
+            className="text-xs px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 rounded-lg transition-colors flex items-center space-x-2"
           >
-            🔄 Brute force approach
+            <span>🔄</span>
+            <span>Brute force</span>
           </button>
-          <button 
+          <button
             onClick={() => addPredefinedMessage("What about using a hash set for O(1) lookups?")}
-            className="text-xs px-3 py-1.5 bg-white border border-green-200 hover:bg-green-50 text-green-700 rounded-lg transition-colors shadow-sm"
+            className="text-xs px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 rounded-lg transition-colors flex items-center space-x-2"
           >
-            ⚡ Optimization idea
+            <span>⚡</span>
+            <span>Optimization</span>
           </button>
-          <button 
+          <button
             onClick={() => addPredefinedMessage("Could I get a progressive hint to guide my thinking?")}
-            className="text-xs px-3 py-1.5 bg-white border border-blue-200 hover:bg-blue-50 text-blue-700 rounded-lg transition-colors shadow-sm"
+            className="text-xs px-3 py-2 bg-white/5 border border-white/10 hover:bg-white/10 text-gray-300 rounded-lg transition-colors flex items-center space-x-2"
           >
-            💡 Request guidance
+            <span>💡</span>
+            <span>Hint</span>
           </button>
         </div>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar">
         {messages.map((message) => (
           <div key={message.id} className={`flex items-start space-x-3 ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
             {message.type === 'assistant' && (
-              <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+              <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0 shadow-lg shadow-purple-900/20">
                 <Bot className="w-4 h-4 text-white" />
               </div>
             )}
-            
-            <div className={`max-w-xs lg:max-w-sm px-4 py-3 rounded-lg shadow-sm relative ${
-              message.type === 'user' 
-                ? 'bg-blue-600 text-white rounded-br-sm' 
-                : 'bg-white border border-gray-200 text-gray-900 rounded-bl-sm'
-            }`}>
+
+            <div className={`max-w-[85%] px-5 py-4 rounded-2xl shadow-sm relative ${message.type === 'user'
+              ? 'bg-white text-black rounded-br-sm'
+              : 'bg-white/5 border border-white/10 text-gray-200 rounded-bl-sm'
+              }`}>
               {/* Speaking indicator for AI messages */}
               {message.type === 'assistant' && voiceService.getState().isSpeaking && (
-                <div className="absolute -top-2 -right-2 w-4 h-4 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
-                  <div className="w-2 h-2 bg-white rounded-full"></div>
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full flex items-center justify-center animate-pulse">
                 </div>
               )}
-              {/* Message type indicator */}
-              {(message.isHint || message.isQuestion) && (
-                <div className={`text-xs mb-2 ${message.type === 'user' ? 'text-blue-200' : 'text-purple-600'}`}>
-                  {message.isHint && '💡 Hint Request'}
-                  {message.isQuestion && !message.isHint && '❓ Question'}
-                  {message.type === 'assistant' && message.isHint && '🎯 AI Guidance'}
-                </div>
-              )}
-              
-              <div className="text-sm whitespace-pre-line">{message.content}</div>
-              
-              <div className={`text-xs mt-2 flex items-center justify-between ${message.type === 'user' ? 'text-blue-100' : 'text-gray-500'}`}>
+
+              <div className="text-sm leading-relaxed whitespace-pre-line">{message.content}</div>
+
+              <div className={`text-[10px] mt-2 flex items-center justify-between ${message.type === 'user' ? 'text-gray-500' : 'text-gray-500'}`}>
                 <span>
                   {String(message.timestamp.getHours()).padStart(2, '0')}:
                   {String(message.timestamp.getMinutes()).padStart(2, '0')}
                 </span>
-                
-                {/* Analytics indicators */}
-                {message.type === 'assistant' && message.isHint && (
-                  <span className="text-xs bg-purple-100 text-purple-600 px-1 rounded">Tracked</span>
-                )}
               </div>
             </div>
 
             {message.type === 'user' && (
-              <div className="w-8 h-8 bg-gray-300 rounded-full flex items-center justify-center flex-shrink-0">
-                <span className="text-sm font-medium text-gray-700">You</span>
+              <div className="w-8 h-8 bg-white/10 rounded-lg flex items-center justify-center flex-shrink-0 border border-white/10">
+                <span className="text-xs font-bold text-white">You</span>
               </div>
             )}
           </div>
@@ -342,14 +340,14 @@ export default function EnhancedChatInterface({
 
         {isTyping && (
           <div className="flex items-start space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
               <Bot className="w-4 h-4 text-white" />
             </div>
-            <div className="bg-white border border-gray-200 px-4 py-3 rounded-lg rounded-bl-sm shadow-sm">
+            <div className="bg-white/5 border border-white/10 px-4 py-3 rounded-2xl rounded-bl-sm">
               <div className="flex space-x-1">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce"></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce"></div>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
               </div>
             </div>
           </div>
@@ -357,50 +355,54 @@ export default function EnhancedChatInterface({
       </div>
 
       {/* Input */}
-      <div className="border-t border-gray-200 p-4 space-y-3">
-        {/* Quick Actions */}
-        <div className="flex space-x-2">
+      <div className="border-t border-white/10 p-4 bg-black">
+        {/* Controls Row */}
+        <div className="flex items-center justify-between mb-3">
           <button
             onClick={analyzeComplexity}
             disabled={isAnalyzing || !currentCode.trim()}
-            className="flex items-center space-x-1 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 disabled:bg-gray-100 text-purple-700 disabled:text-gray-400 rounded-lg transition-colors text-xs font-medium"
+            className="flex items-center space-x-2 px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 rounded-lg transition-colors text-xs font-medium border border-purple-500/20"
           >
-            {isAnalyzing ? (
-              <>
-                <Loader2 className="w-3 h-3 animate-spin" />
-                <span>Analyzing...</span>
-              </>
-            ) : (
-              <>
-                <Bot className="w-3 h-3" />
-                <span>Analyze Complexity</span>
-              </>
-            )}
+            {isAnalyzing ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
+            <span>Analyze Code</span>
           </button>
+
+          <div className="flex items-center space-x-2">
+            <VoiceControls
+              onSpeechResult={handleVoiceInput}
+              onSpeechStart={() => console.log('Started listening...')}
+              onSpeechEnd={() => console.log('Stopped listening...')}
+              className="flex"
+              isHandsFree={isHandsFreeMode}
+              isAiSpeaking={isAiSpeaking}
+            />
+            <button
+              onClick={() => setIsHandsFreeMode(!isHandsFreeMode)}
+              className={`p-2 rounded-lg transition-all duration-200 ${isHandsFreeMode
+                ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+                : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'
+                }`}
+              title="Hands-free Mode"
+            >
+              {isHandsFreeMode ? <Mic className="w-4 h-4" /> : <MicOff className="w-4 h-4" />}
+            </button>
+          </div>
         </div>
 
-        {/* Voice Controls */}
-        <VoiceControls 
-          onSpeechResult={handleVoiceInput}
-          onSpeechStart={() => console.log('Started listening...')}
-          onSpeechEnd={() => console.log('Stopped listening...')}
-          className="flex justify-center"
-        />
-
         {/* Message Input */}
-        <div className="flex space-x-2">
+        <div className="relative">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={handleKeyPress}
-            placeholder="Type or speak your question... Ask for hints, explain your approach, or discuss the solution..."
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm transition-colors text-black placeholder-gray-400"
+            placeholder="Ask anything..."
+            className="w-full pl-4 pr-12 py-3 bg-white/5 border border-white/10 rounded-xl focus:outline-none focus:border-purple-500/50 focus:ring-1 focus:ring-purple-500/50 text-sm text-white placeholder-gray-500 transition-all"
           />
           <button
             onClick={sendMessage}
             disabled={!inputMessage.trim() || isTyping}
-            className="flex items-center space-x-1 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white rounded-lg transition-all font-medium"
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white text-black rounded-lg hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 transition-colors"
           >
             {isTyping ? (
               <Loader2 className="w-4 h-4 animate-spin" />

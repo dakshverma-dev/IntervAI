@@ -43,9 +43,9 @@ export default function PerformanceMetrics({ metrics, interviewMetrics }: Perfor
     <div className="bg-gradient-to-br from-white to-purple-50 rounded-lg p-4 shadow-sm border border-purple-100">
       <h3 className="text-sm font-medium text-gray-700 mb-3 flex items-center">
         <BarChart3 className="w-4 h-4 mr-2 text-purple-600" />
-        CodeSage Analytics
+        IntervAi Analytics
       </h3>
-      
+
       <div className="space-y-3">
         {/* Execution Time */}
         <div className="flex items-center justify-between">
@@ -92,59 +92,57 @@ export default function PerformanceMetrics({ metrics, interviewMetrics }: Perfor
         {metrics.codeQuality > 0 && (
           <div className="w-full">
             <div className="w-full bg-gray-200 rounded-full h-2">
-              <div 
-                className={`h-2 rounded-full transition-all duration-500 ${
-                  metrics.codeQuality >= 80 ? 'bg-green-500' :
-                  metrics.codeQuality >= 60 ? 'bg-yellow-500' : 'bg-red-500'
-                }`}
+              <div
+                className={`h-2 rounded-full transition-all duration-500 ${metrics.codeQuality >= 80 ? 'bg-green-500' :
+                    metrics.codeQuality >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                  }`}
                 style={{ width: `${metrics.codeQuality}%` }}
               ></div>
             </div>
           </div>
         )}
-        
+
         {/* Interview Metrics Separator */}
         {interviewMetrics && (
           <>
             <div className="border-t border-purple-200 my-3"></div>
-            
+
             {/* Interview Session Stats */}
             <div className="space-y-2">
               <h4 className="text-xs font-medium text-purple-700 mb-2">Interview Session</h4>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Session Time</span>
                 <span className="text-xs font-mono text-gray-900">
                   {Math.floor(interviewMetrics.timeElapsed / 60)}:{String(interviewMetrics.timeElapsed % 60).padStart(2, '0')}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Current Phase</span>
-                <span className={`text-xs font-medium capitalize px-2 py-1 rounded-full ${
-                  interviewMetrics.currentPhase === 'reading' ? 'bg-blue-100 text-blue-700' :
-                  interviewMetrics.currentPhase === 'coding' ? 'bg-green-100 text-green-700' :
-                  interviewMetrics.currentPhase === 'testing' ? 'bg-yellow-100 text-yellow-700' :
-                  'bg-purple-100 text-purple-700'
-                }`}>
+                <span className={`text-xs font-medium capitalize px-2 py-1 rounded-full ${interviewMetrics.currentPhase === 'reading' ? 'bg-blue-100 text-blue-700' :
+                    interviewMetrics.currentPhase === 'coding' ? 'bg-green-100 text-green-700' :
+                      interviewMetrics.currentPhase === 'testing' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-purple-100 text-purple-700'
+                  }`}>
                   {interviewMetrics.currentPhase}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Hints Used</span>
                 <span className={`text-xs font-medium ${interviewMetrics.hintsUsed > 3 ? 'text-red-600' : 'text-gray-900'}`}>
                   {interviewMetrics.hintsUsed}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Questions Asked</span>
                 <span className="text-xs font-medium text-gray-900">
                   {interviewMetrics.questionsAsked}
                 </span>
               </div>
-              
+
               <div className="flex items-center justify-between">
                 <span className="text-xs text-gray-600">Code Runs</span>
                 <span className="text-xs font-medium text-gray-900">

@@ -1,12 +1,15 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { Play, Clock, BarChart3, MessageSquare, ArrowLeft, Timer, Target, HelpCircle, CheckCircle, Send } from 'lucide-react';
+import { Play, Clock, BarChart3, MessageSquare, ArrowLeft, Timer, Target, HelpCircle, Send, Code2, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import CodeEditor from '@/components/CodeEditor';
 import EnhancedChatInterface from '@/components/EnhancedChatInterface';
+import CameraView from '@/components/CameraView';
 import { CODING_PROBLEMS, CodingProblem } from '@/data/problems';
+import { SAMPLE_RESUME, PREMADE_QUESTIONS } from '@/data/mockData';
 import AIService from '@/services/AIService';
+import Logo from '@/components/Logo';
 
 export default function PracticePage() {
   // Problem management
@@ -15,7 +18,7 @@ export default function PracticePage() {
   const [code, setCode] = useState(CODING_PROBLEMS[0].initialCode);
   const [isFirstRun, setIsFirstRun] = useState(true);
   const [hasStartedCoding, setHasStartedCoding] = useState(false);
-  
+
   const [isRunning, setIsRunning] = useState(false);
   const [metrics, setMetrics] = useState({
     executionTime: 0,
@@ -26,15 +29,17 @@ export default function PracticePage() {
 
   // Interview state
   const [interviewPhase, setInterviewPhase] = useState<'initial' | 'coding' | 'submitted' | 'completed' | 'guidance'>('initial');
-  const [problemsCompleted, setProblemsCompleted] = useState(0);
   const [aiService] = useState(() => new AIService());
+
+  // Resume state - Simplified flow
+  const [resumeQuestions] = useState<string[]>(PREMADE_QUESTIONS);
 
   // Interview tracking states
   const [isInterviewActive] = useState(true);
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [codeSubmissions, setCodeSubmissions] = useState(0);
-  
+
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
   // Add state for triggering AI responses in chat
@@ -61,12 +66,12 @@ export default function PracticePage() {
     setCodeSubmissions(prev => prev + 1);
     setProblemsCompleted(prev => prev + 1);
     setInterviewPhase('submitted');
-    
+
     // Get AI feedback on submission
     try {
       await aiService.getCodeExecutionResponse(
-        code, 
-        currentProblem.title, 
+        code,
+        currentProblem.title,
         false
       );
       // You can add this response to chat or show in a modal
@@ -106,7 +111,7 @@ export default function PracticePage() {
           console.error('Error sending initial greeting:', error);
         }
       };
-      
+
       sendInitialGreeting();
     }
   }, [currentProblem, interviewPhase, aiService]);
@@ -114,11 +119,11 @@ export default function PracticePage() {
   // Advanced complexity detection
   const analyzeTimeComplexity = (codeText: string): string => {
     if (!codeText.trim()) return 'O(?)';
-    
+
     // Normalize code for analysis
     const normalizedCode = codeText.toLowerCase();
     const lines = codeText.split('\n');
-    
+
     // Track patterns
     let maxNestedLoops = 0;
     let hasRecursiveCall = false;
@@ -128,15 +133,15 @@ export default function PracticePage() {
     let hasLinearSearch = false;
     let hasBinarySearch = false;
     let singleLoop = false;
-    
+
     // Analyze each line
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim().toLowerCase();
-      
+
       // Track loop nesting by indentation and keywords
       if (line.includes('for ') || line.includes('while ')) {
         singleLoop = true;
-        
+
         // Check if this loop is nested inside another
         let isNested = false;
         for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
@@ -148,7 +153,7 @@ export default function PracticePage() {
             }
           }
         }
-        
+
         // Check for triple nested loops
         if (isNested) {
           for (let k = i + 2; k < Math.min(i + 15, lines.length); k++) {
@@ -161,32 +166,32 @@ export default function PracticePage() {
           }
         }
       }
-      
+
       // Data structures
       if (line.includes('set()') || line.includes('set(') || line.includes('hashset')) {
         hasHashSet = true;
       }
-      
-      if (line.includes('dict()') || line.includes('dict(') || line.includes('{}') || 
-          line.includes('hashmap') || line.includes('map(')) {
+
+      if (line.includes('dict()') || line.includes('dict(') || line.includes('{}') ||
+        line.includes('hashmap') || line.includes('map(')) {
         hasHashMap = true;
       }
-      
+
       // Algorithms
       if (line.includes('.sort(') || line.includes('sorted(') || line.includes('sort(')) {
         hasSorting = true;
       }
-      
+
       // Search patterns
       if (line.includes('in arr') || line.includes('in array') || line.includes('in nums') ||
-          line.includes('.find(') || line.includes('.index(') || line.includes('linear')) {
+        line.includes('.find(') || line.includes('.index(') || line.includes('linear')) {
         hasLinearSearch = true;
       }
-      
+
       if (line.includes('binary') || line.includes('bisect') || line.includes('log')) {
         hasBinarySearch = true;
       }
-      
+
       // Recursion detection
       if (line.includes('def ')) {
         const funcName = line.match(/def\s+(\w+)/)?.[1];
@@ -201,7 +206,7 @@ export default function PracticePage() {
         }
       }
     }
-    
+
     // Complexity determination
     if (hasRecursiveCall) {
       if (maxNestedLoops >= 2) return 'O(2^n)';
@@ -209,28 +214,28 @@ export default function PracticePage() {
       if (hasBinarySearch || normalizedCode.includes('//2') || normalizedCode.includes('/2')) return 'O(log n)';
       return 'O(n)';
     }
-    
+
     if (maxNestedLoops >= 2) return 'O(n³)';
     if (maxNestedLoops === 1) return 'O(n²)';
-    
+
     if (hasSorting && !hasHashSet && !hasHashMap) return 'O(n log n)';
-    
+
     if (singleLoop) {
       if (hasHashSet || hasHashMap) return 'O(n)';
       return 'O(n)';
     }
-    
+
     if (hasBinarySearch) return 'O(log n)';
-    
+
     if (hasHashSet || hasHashMap) {
       if (hasLinearSearch) return 'O(n)';
       if (normalizedCode.includes('lookup') || normalizedCode.includes('get(')) return 'O(1)';
       return 'O(n)';
     }
-    
+
     // Simple operations
     if (lines.length <= 3 && normalizedCode.includes('return')) return 'O(1)';
-    
+
     return 'O(?)';
   };
 
@@ -243,12 +248,12 @@ export default function PracticePage() {
     const hasReturnStatement = code.includes('return');
     const hasLoops = code.includes('for') || code.includes('while');
     const hasConditionals = code.includes('if ');
-    
+
     // Detect approach patterns
     const isNestedLoop = (code.match(/for.*:/g) || []).length >= 2;
     const hasHashMap = code.includes('{}') || code.includes('dict') || code.includes('set(');
     const hasSorting = code.includes('sort') || code.includes('sorted');
-    
+
     return {
       complexity,
       codeLines,
@@ -270,10 +275,10 @@ export default function PracticePage() {
     setIsRunning(true);
     setCodeSubmissions(prev => prev + 1);
     setHasStartedCoding(true);
-    
+
     // Analyze execution result for more context
     const executionAnalysis = analyzeCodeExecution(code);
-    
+
     // Get comprehensive AI response for code execution
     try {
       const response = await aiService.getCodeExecutionResponse(
@@ -282,18 +287,18 @@ export default function PracticePage() {
         isFirstRun,
         executionAnalysis
       );
-      
+
       // Trigger AI response in chat interface with enhanced context
       setAiCodeResponse(response);
       setIsFirstRun(false);
-      
+
       // Update interview phase based on progress
       if (isFirstRun) {
         setInterviewPhase('coding');
       } else if (codeSubmissions >= 3) {
         setInterviewPhase('guidance'); // Switch to guidance mode after multiple attempts
       }
-      
+
     } catch (error) {
       console.error('Error getting AI response:', error);
       // Enhanced fallback with encouragement
@@ -305,11 +310,11 @@ export default function PracticePage() {
       ];
       setAiCodeResponse(encouragingFallbacks[Math.floor(Math.random() * encouragingFallbacks.length)]);
     }
-    
+
     // Simulate code execution with enhanced analysis
     setTimeout(() => {
       const detectedComplexity = analyzeTimeComplexity(code);
-      
+
       // Enhanced analysis based on code patterns
       const codeLines = code.split('\n').filter(line => line.trim()).length;
       const hasComments = code.includes('#') || code.includes('//') || code.includes('"""');
@@ -319,22 +324,22 @@ export default function PracticePage() {
       const hasDocstring = code.includes('"""') || code.includes("'''");
       const hasTypeHints = code.includes(':') && (code.includes('List') || code.includes('int') || code.includes('str'));
       const hasReturnStatement = code.includes('return');
-      
+
       // Calculate quality score
       let quality = 30; // Base score
-      
+
       // Code structure points
       if (codeLines >= 5 && codeLines <= 20) quality += 15; // Appropriate length
       else if (codeLines > 20) quality += 5; // Too long
       else if (codeLines < 5) quality += 10; // Concise
-      
+
       if (hasComments || hasDocstring) quality += 15; // Documentation
       if (hasVariableNames) quality += 15; // Good naming
       if (hasErrorHandling) quality += 10; // Edge cases
       if (hasFunctionDef) quality += 10; // Proper structure
       if (hasTypeHints) quality += 5; // Modern practices
       if (hasReturnStatement) quality += 5; // Complete function
-      
+
       // Algorithm efficiency points  
       switch (detectedComplexity) {
         case 'O(1)': quality += 30; break;
@@ -346,12 +351,12 @@ export default function PracticePage() {
         case 'O(2^n)': quality -= 10; break;
         default: quality -= 15; // Unknown complexity
       }
-      
+
       // Code patterns bonus
       if (code.includes('set(') || code.includes('dict(')) quality += 10; // Good data structures
       if (code.includes('enumerate') || code.includes('zip')) quality += 5; // Pythonic
       if (code.includes('list comprehension') || /\[.*for.*in.*\]/.test(code)) quality += 5; // Concise
-      
+
       // Execution time simulation based on complexity
       let execTime = 10;
       const randomFactor = Math.random(); // Generate once to avoid hydration issues
@@ -364,10 +369,10 @@ export default function PracticePage() {
         case 'O(2^n)': execTime = 1000 + randomFactor * 1000; break;
         default: execTime = 0;
       }
-      
+
       // Calculate realistic memory usage based on data structures
       let memoryUsage = 8; // Base memory for function
-      
+
       // Add memory for data structures
       if (code.includes('set(') || code.includes('dict(')) {
         memoryUsage += 32; // Hash table overhead
@@ -378,7 +383,7 @@ export default function PracticePage() {
       if (code.includes('result') || code.includes('duplicates')) {
         memoryUsage += 16; // Result storage
       }
-      
+
       // Memory complexity based on algorithm
       switch (detectedComplexity) {
         case 'O(1)': memoryUsage += randomFactor * 5; break;
@@ -387,22 +392,16 @@ export default function PracticePage() {
         case 'O(n²)': memoryUsage += 50 + randomFactor * 40; break;
         default: memoryUsage += 15 + randomFactor * 20;
       }
-      
+
       setMetrics({
         executionTime: execTime,
         memoryUsage: Math.round(memoryUsage * 100) / 100,
         complexity: detectedComplexity,
         codeQuality: Math.min(100, Math.max(0, Math.round(quality)))
       });
-      
+
       setIsRunning(false);
     }, 1000);
-  };
-
-  const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
   const handleHintUsed = () => {
@@ -414,86 +413,69 @@ export default function PracticePage() {
   };
 
   return (
-    <div className="h-screen bg-gray-50 flex flex-col">
-      {/* Simplified Header */}
-      <header className="bg-white border-b border-gray-200 px-6 py-3 flex-shrink-0">
+    <div className="h-screen bg-black text-white flex flex-col overflow-hidden selection:bg-purple-500/30">
+      {/* Header */}
+      <header className="bg-black/50 backdrop-blur-xl border-b border-white/10 px-6 py-3 flex-shrink-0 z-50">
         <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <Link 
+          <div className="flex items-center space-x-6">
+            <Link
               href="/"
-              className="flex items-center space-x-2 text-gray-600 hover:text-purple-600 transition-colors"
+              className="flex items-center space-x-2 text-gray-400 hover:text-white transition-colors"
             >
               <ArrowLeft className="w-4 h-4" />
-              <span className="text-sm">Back</span>
+              <span className="text-sm font-medium">Exit</span>
             </Link>
-            <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 bg-gradient-to-br from-purple-500 to-blue-600 rounded-lg flex items-center justify-center">
-                <BarChart3 className="w-4 h-4 text-white" />
-              </div>
-              <h1 className="text-lg font-bold text-gray-900">CodeSage Interview</h1>
+            <div className="h-6 w-px bg-white/10"></div>
+            <div className="flex items-center space-x-3">
+              <Logo className="scale-90" />
             </div>
           </div>
-          
-          {/* Compact Interview Stats */}
+
+          {/* Stats & Controls */}
           <div className="flex items-center space-x-6">
-            <div className="flex items-center space-x-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-1">
-                <Timer className="w-4 h-4" />
-                <span>{Math.floor(timeElapsed / 60)}:{String(timeElapsed % 60).padStart(2, '0')}</span>
+            <div className="flex items-center space-x-6 text-sm text-gray-400 bg-white/5 px-4 py-2 rounded-full border border-white/5">
+              <div className="flex items-center space-x-2">
+                <Timer className="w-4 h-4 text-purple-400" />
+                <span className="font-mono text-white">{Math.floor(timeElapsed / 60)}:{String(timeElapsed % 60).padStart(2, '0')}</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <HelpCircle className="w-4 h-4" />
-                <span>{hintsUsed}</span>
+              <div className="w-px h-4 bg-white/10"></div>
+              <div className="flex items-center space-x-2">
+                <HelpCircle className="w-4 h-4 text-blue-400" />
+                <span>{hintsUsed} Hints</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Target className="w-4 h-4" />
-                <span>{codeSubmissions}</span>
+              <div className="w-px h-4 bg-white/10"></div>
+              <div className="flex items-center space-x-2">
+                <Target className="w-4 h-4 text-green-400" />
+                <span>{codeSubmissions} Submissions</span>
               </div>
             </div>
-            
+
             <div className="flex items-center space-x-3">
               <button
                 onClick={runCode}
                 disabled={isRunning}
-                className="flex items-center space-x-2 bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm"
+                className="flex items-center space-x-2 bg-white text-black hover:bg-gray-200 disabled:bg-gray-600 disabled:text-gray-400 px-4 py-2 rounded-full transition-all duration-200 font-medium text-sm"
               >
-                <Play className="w-4 h-4" />
+                {isRunning ? <Clock className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4 fill-current" />}
                 <span>{isRunning ? 'Running...' : 'Run Code'}</span>
               </button>
-              
+
               <button
                 onClick={handleSubmitProblem}
                 disabled={!hasStartedCoding || isRunning}
-                className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-700 hover:to-emerald-700 disabled:from-gray-400 disabled:to-gray-500 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm"
+                className="flex items-center space-x-2 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 disabled:from-gray-800 disabled:to-gray-800 text-white px-4 py-2 rounded-full transition-all duration-200 font-medium text-sm shadow-lg shadow-green-900/20"
               >
                 <Send className="w-4 h-4" />
-                <span>Submit Solution</span>
+                <span>Submit</span>
               </button>
-              
+
               {interviewPhase === 'submitted' && currentProblemIndex < CODING_PROBLEMS.length - 1 && (
                 <button
                   onClick={handleNextProblem}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-700 hover:to-cyan-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm"
+                  className="flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white px-4 py-2 rounded-full transition-all duration-200 font-medium text-sm"
                 >
-                  <Target className="w-4 h-4" />
-                  <span>Next Problem</span>
-                </button>
-              )}
-              
-              {interviewPhase === 'completed' && (
-                <button
-                  onClick={async () => {
-                    const closingMessage = await aiService.getClosingInteraction(
-                      problemsCompleted, 
-                      formatTime(timeElapsed), 
-                      "excellent"
-                    );
-                    alert(closingMessage); // You can replace this with a proper modal
-                  }}
-                  className="flex items-center space-x-2 bg-gradient-to-r from-yellow-600 to-orange-600 hover:from-yellow-700 hover:to-orange-700 text-white px-4 py-2 rounded-lg transition-all duration-200 font-medium text-sm"
-                >
-                  <CheckCircle className="w-4 h-4" />
-                  <span>Complete Interview</span>
+                  <ChevronRight className="w-4 h-4" />
+                  <span>Next</span>
                 </button>
               )}
             </div>
@@ -501,108 +483,102 @@ export default function PracticePage() {
         </div>
       </header>
 
-      {/* Main Content - Clean 3-Panel Layout */}
+      {/* Main Content */}
       <div className="flex-1 flex min-h-0">
-        {/* Problem Statement Panel - Streamlined */}
-        <div className="w-80 bg-white border-r border-gray-200 flex flex-col">
-          <div className="p-4 border-b border-gray-100">
-            <div className="flex items-center justify-between mb-2">
-              <h2 className="text-lg font-semibold text-gray-900">{currentProblem.title}</h2>
-              <span className={`px-2 py-1 rounded text-xs font-medium ${
-                currentProblem.difficulty === 'Easy' ? 'bg-green-100 text-green-800' :
-                currentProblem.difficulty === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
-                'bg-red-100 text-red-800'
-              }`}>
+        {/* Left Panel: Problem & Metrics */}
+        <div className="w-[400px] bg-black border-r border-white/10 flex flex-col">
+          <div className="p-6 border-b border-white/10">
+            <div className="flex items-center justify-between mb-4">
+              <span className={`px-2 py-1 rounded text-xs font-medium border ${currentProblem.difficulty === 'Easy' ? 'bg-green-500/10 text-green-400 border-green-500/20' :
+                  currentProblem.difficulty === 'Medium' ? 'bg-yellow-500/10 text-yellow-400 border-yellow-500/20' :
+                    'bg-red-500/10 text-red-400 border-red-500/20'
+                }`}>
                 {currentProblem.difficulty}
               </span>
+              <span className="text-xs text-gray-500">{currentProblem.category}</span>
             </div>
-            <p className="text-sm text-gray-600">{currentProblem.category}</p>
-            <div className="flex items-center space-x-2">
-              <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-medium">Medium</span>
-              <span className="px-2 py-1 bg-green-100 text-green-700 rounded text-xs font-medium">Array</span>
-            </div>
+            <h2 className="text-xl font-bold text-white mb-2">{currentProblem.title}</h2>
           </div>
-          
-          <div className="flex-1 p-4 overflow-y-auto">
-            <div className="space-y-4">
-              {/* Problem Description */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Description</h3>
-                <div className="text-sm text-gray-600 leading-relaxed whitespace-pre-line">{currentProblem.description}</div>
-              </div>
 
-              {/* Examples - Compact */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Examples</h3>
-                <div className="space-y-2">
-                  {currentProblem.testCases.slice(0, 2).map((example: { input: string; output: string; explanation?: string }, idx: number) => (
-                    <div key={idx} className="bg-gray-50 p-3 rounded border-l-2 border-purple-400">
-                      <div className="text-xs text-gray-600 mb-1">
-                        <span className="font-medium">Input:</span> <code className="bg-white px-1 rounded text-purple-700">{example.input}</code>
-                      </div>
-                      <div className="text-xs text-gray-600">
-                        <span className="font-medium">Output:</span> <code className="bg-white px-1 rounded text-blue-700">{example.output}</code>
-                      </div>
+          <div className="flex-1 overflow-y-auto p-6 space-y-8 custom-scrollbar">
+            {/* Description */}
+            <div className="prose prose-invert prose-sm max-w-none">
+              <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">Description</h3>
+              <div className="text-gray-300 leading-relaxed whitespace-pre-line">{currentProblem.description}</div>
+            </div>
+
+            {/* Examples */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">Examples</h3>
+              <div className="space-y-3">
+                {currentProblem.testCases.slice(0, 2).map((example: { input: string; output: string; explanation?: string }, idx: number) => (
+                  <div key={idx} className="bg-white/5 rounded-lg p-4 border border-white/5">
+                    <div className="grid grid-cols-[auto,1fr] gap-x-4 gap-y-2 text-sm">
+                      <span className="text-gray-500">Input:</span>
+                      <code className="text-purple-300 font-mono">{example.input}</code>
+                      <span className="text-gray-500">Output:</span>
+                      <code className="text-green-300 font-mono">{example.output}</code>
                     </div>
-                  ))}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Constraints */}
+            <div>
+              <h3 className="text-sm font-medium text-gray-400 uppercase tracking-wider mb-3">Constraints</h3>
+              <ul className="space-y-2">
+                {['Array length: 1 ≤ n ≤ 10^5', 'Time complexity: O(n)', 'Space complexity: O(n)'].map((constraint: string, idx: number) => (
+                  <li key={idx} className="flex items-center text-sm text-gray-400">
+                    <div className="w-1.5 h-1.5 bg-blue-500 rounded-full mr-3"></div>
+                    {constraint}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            {/* Metrics Card */}
+            <div className="bg-gradient-to-br from-purple-900/20 to-blue-900/20 rounded-xl p-5 border border-white/10">
+              <h3 className="text-sm font-medium text-white mb-4 flex items-center">
+                <BarChart3 className="w-4 h-4 mr-2 text-purple-400" />
+                Performance Analysis
+              </h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-black/40 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Time Complexity</div>
+                  <div className="text-lg font-mono text-purple-400">{metrics.complexity}</div>
                 </div>
-              </div>
-
-              {/* Constraints - Compact */}
-              <div>
-                <h3 className="text-sm font-medium text-gray-700 mb-2">Constraints</h3>
-                <ul className="text-xs text-gray-600 space-y-1">
-                  {['Array length: 1 ≤ n ≤ 10^5', 'Time complexity: O(n)', 'Space complexity: O(n)'].map((constraint: string, idx: number) => (
-                    <li key={idx} className="flex items-start">
-                      <span className="w-1 h-1 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0"></span>
-                      <span>{constraint}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-
-              {/* Performance Metrics - Compact */}
-              <div className="bg-gradient-to-r from-purple-50 to-blue-50 p-3 rounded border">
-                <h3 className="text-sm font-medium text-gray-700 mb-2 flex items-center">
-                  <BarChart3 className="w-4 h-4 mr-1 text-purple-600" />
-                  Results
-                </h3>
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Time:</span>
-                    <span className="font-mono text-black">{metrics.executionTime > 0 ? `${metrics.executionTime.toFixed(1)}ms` : '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Memory:</span>
-                    <span className="font-mono text-black">{metrics.memoryUsage > 0 ? `${metrics.memoryUsage.toFixed(1)}MB` : '-'}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Complexity:</span>
-                    <span className="font-mono text-purple-600">{metrics.complexity}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Quality:</span>
-                    <span className="font-mono text-green-600">{metrics.codeQuality > 0 ? `${metrics.codeQuality}%` : '-'}</span>
-                  </div>
+                <div className="bg-black/40 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Execution Time</div>
+                  <div className="text-lg font-mono text-blue-400">{metrics.executionTime > 0 ? `${metrics.executionTime.toFixed(1)}ms` : '-'}</div>
+                </div>
+                <div className="bg-black/40 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Memory Usage</div>
+                  <div className="text-lg font-mono text-yellow-400">{metrics.memoryUsage > 0 ? `${metrics.memoryUsage.toFixed(1)}MB` : '-'}</div>
+                </div>
+                <div className="bg-black/40 rounded-lg p-3">
+                  <div className="text-xs text-gray-500 mb-1">Code Quality</div>
+                  <div className="text-lg font-mono text-green-400">{metrics.codeQuality > 0 ? `${metrics.codeQuality}%` : '-'}</div>
                 </div>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Code Editor Panel */}
-        <div className="flex-1 flex flex-col bg-white">
-          <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center justify-between">
-              <span className="text-sm font-medium text-gray-700">Your Solution</span>
-              <div className="flex items-center space-x-2 text-xs text-gray-500">
-                <Clock className="w-3 h-3" />
-                <span>{metrics.executionTime > 0 ? `${metrics.executionTime.toFixed(1)}ms` : 'Not run yet'}</span>
-              </div>
+        {/* Center Panel: Code Editor */}
+        <div className="flex-1 flex flex-col bg-[#1e1e1e] border-r border-white/10 relative">
+          <div className="absolute inset-0 bg-black/20 pointer-events-none z-10" /> {/* Dark overlay for depth */}
+          <div className="px-4 py-2 bg-black border-b border-white/10 flex items-center justify-between z-20">
+            <div className="flex items-center space-x-2">
+              <Code2 className="w-4 h-4 text-blue-400" />
+              <span className="text-sm font-medium text-gray-300">solution.py</span>
+            </div>
+            <div className="flex items-center space-x-2 text-xs text-gray-500">
+              <div className={`w-2 h-2 rounded-full ${hasStartedCoding ? 'bg-green-500' : 'bg-gray-600'}`}></div>
+              <span>{hasStartedCoding ? 'Editing' : 'Ready'}</span>
             </div>
           </div>
-          
-          <div className="flex-1 min-h-0">
+          <div className="flex-1 relative z-0">
             <CodeEditor
               value={code}
               onChange={setCode}
@@ -611,20 +587,30 @@ export default function PracticePage() {
           </div>
         </div>
 
-        {/* CodeSage Interviewer Panel */}
-        <div className="w-80 bg-white border-l border-gray-200 flex flex-col">
-          <div className="px-4 py-2 border-b border-gray-200 bg-gray-50">
-            <div className="flex items-center space-x-2">
-              <MessageSquare className="w-4 h-4 text-purple-600" />
-              <h3 className="text-sm font-medium text-gray-700">CodeSage Interviewer</h3>
-              <div className="ml-auto">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+        {/* Right Panel: AI Interviewer */}
+        <div className="w-[400px] bg-black flex flex-col">
+          <div className="px-6 py-4 border-b border-white/10 bg-white/5 backdrop-blur-sm">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-3">
+                <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-blue-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-900/20">
+                  <MessageSquare className="w-4 h-4 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">AI Interviewer</h3>
+                  <div className="flex items-center space-x-1.5">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <span className="text-xs text-green-400 font-medium">Online</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-          
-          <div className="flex-1 min-h-0">
-            <EnhancedChatInterface 
+
+          <div className="flex-1 min-h-0 bg-black/50">
+            <EnhancedChatInterface
               onHintUsed={handleHintUsed}
               onQuestionAsked={handleQuestionAsked}
               currentCode={code}
@@ -633,10 +619,15 @@ export default function PracticePage() {
               interviewPhase={interviewPhase}
               aiCodeResponse={aiCodeResponse}
               onCodeResponseHandled={() => setAiCodeResponse('')}
+              resumeContext={SAMPLE_RESUME}
+              premadeQuestions={resumeQuestions}
             />
           </div>
         </div>
       </div>
+
+      {/* Camera View */}
+      <CameraView />
     </div>
   );
 }

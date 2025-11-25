@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Mic, MicOff, Volume2, VolumeX, Settings, Loader2 } from 'lucide-react';
 import { voiceService } from '@/services/VoiceService';
 
@@ -17,13 +17,17 @@ interface VoiceControlsProps {
   onSpeechStart?: () => void;
   onSpeechEnd?: () => void;
   className?: string;
+  isHandsFree?: boolean;
+  isAiSpeaking?: boolean;
 }
 
 export default function VoiceControls({
   onSpeechResult,
   onSpeechStart,
   onSpeechEnd,
-  className = ''
+  className = '',
+  isHandsFree = false,
+  isAiSpeaking = false
 }: VoiceControlsProps) {
   const [isListening, setIsListening] = useState(false);
   const [isSpeakerEnabled, setIsSpeakerEnabled] = useState(true);
@@ -39,28 +43,28 @@ export default function VoiceControls({
   useEffect(() => {
     // Mark as client-side after hydration
     setIsClient(true);
-    
+
     // Only run in browser
     if (typeof window === 'undefined') return;
-    
+
     // Initialize voice service properly
     const initializeVoiceService = async () => {
       try {
         console.log('🔄 Initializing voice service...');
         await voiceService.ensureReady();
-        
+
         // Update UI after initialization
         const loadVoices = () => {
           setAvailableVoices(voiceService.getVoices());
         };
-        
+
         setSupportedFeatures(voiceService.isSupported());
         setVoiceSettings(voiceService.getSettings());
         loadVoices();
-        
+
         // Listen for voice changes
         window.speechSynthesis?.addEventListener('voiceschanged', loadVoices);
-        
+
         console.log('✅ Voice service initialized successfully');
       } catch (error) {
         console.error('❌ Failed to initialize voice service:', error);
@@ -69,7 +73,7 @@ export default function VoiceControls({
 
     // Initialize immediately
     initializeVoiceService();
-    
+
     return () => {
       window.speechSynthesis?.removeEventListener('voiceschanged', () => {
         setAvailableVoices(voiceService.getVoices());
@@ -77,7 +81,8 @@ export default function VoiceControls({
     };
   }, []);
 
-  const startListening = async () => {
+  // Handle Hands-free mode interactions
+  const startListening = useCallback(async () => {
     if (!supportedFeatures.speechRecognition) {
       alert('Speech recognition is not supported in your browser. Please try Chrome or Edge.');
       return;
@@ -107,13 +112,22 @@ export default function VoiceControls({
       onResult: (transcript: string) => {
         setInterimTranscript('');
         onSpeechResult?.(transcript);
-        setIsListening(false);
+
+        // In hands-free mode, we stay listening (unless AI starts speaking, handled by effect)
+        // In manual mode, we stop after one result
+        if (!isHandsFree) {
+          setIsListening(false);
+        }
       },
       onInterimResult: (transcript: string) => {
         setInterimTranscript(transcript);
       },
       onEnd: () => {
-        setIsListening(false);
+        // Only update state if we're not trying to stay listening
+        // This prevents flickering in continuous mode
+        if (!isHandsFree || isAiSpeaking) {
+          setIsListening(false);
+        }
         setIsProcessing(false);
         setInterimTranscript('');
         onSpeechEnd?.();
@@ -122,12 +136,12 @@ export default function VoiceControls({
         setIsListening(false);
         setIsProcessing(false);
         setInterimTranscript('');
-        
-        const errorMessage = error instanceof Error ? error.message : 
+
+        const errorMessage = error instanceof Error ? error.message :
           (error as SpeechRecognitionErrorEvent)?.error || 'Unknown error';
-        
+
         console.error('Speech recognition error:', errorMessage);
-        
+
         // Provide user-friendly error messages
         let userMessage = 'Speech recognition failed. Please try again.';
         if (errorMessage.includes('not-allowed')) {
@@ -137,27 +151,50 @@ export default function VoiceControls({
         } else if (errorMessage.includes('network')) {
           userMessage = 'Network error. Please check your connection and try again.';
         }
-        
-        alert(userMessage);
+
+        // Don't alert in hands-free mode to avoid spamming
+        if (!isHandsFree) {
+          alert(userMessage);
+        }
       }
     });
-  };
+  }, [supportedFeatures.speechRecognition, onSpeechStart, onSpeechResult, onSpeechEnd, isHandsFree]);
 
-  const stopListening = () => {
+  const stopListening = useCallback(() => {
     voiceService.stopListening();
     setIsListening(false);
     setIsProcessing(false);
     setInterimTranscript('');
-  };
+  }, []);
+
+  useEffect(() => {
+    if (!isHandsFree) return;
+
+    if (isAiSpeaking) {
+      // AI started speaking, stop listening to avoid feedback
+      if (isListening) {
+        stopListening();
+      }
+    } else {
+      // AI stopped speaking (or hasn't started), resume listening if we were interrupted or just starting
+      // We use a small delay to ensure the audio has fully stopped
+      const timer = setTimeout(() => {
+        if (!isListening && !isProcessing && supportedFeatures.speechRecognition) {
+          startListening();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isHandsFree, isAiSpeaking, supportedFeatures.speechRecognition, isListening, isProcessing, startListening, stopListening]);
 
   const toggleSpeaker = () => {
     const newState = !isSpeakerEnabled;
     setIsSpeakerEnabled(newState);
-    
+
     if (!newState) {
       voiceService.stopSpeaking();
     }
-    
+
     // Update voice service settings
     voiceService.updateSettings({ autoSpeak: newState });
   };
@@ -171,10 +208,10 @@ export default function VoiceControls({
   const testTTS = async () => {
     try {
       console.log('🧪 Testing TTS from VoiceControls...');
-      
+
       // Enable debug mode for better troubleshooting
       voiceService.enableDebugMode();
-      
+
       // Force reinitialize if no voices are available
       const state = voiceService.getState();
       if (state.voicesAvailable === 0) {
@@ -182,7 +219,7 @@ export default function VoiceControls({
         voiceService.reinitialize();
         await new Promise(resolve => setTimeout(resolve, 1000));
       }
-      
+
       const success = await voiceService.testTTS();
       if (success) {
         alert('✅ TTS test successful! You should hear the test message.');
@@ -197,28 +234,27 @@ export default function VoiceControls({
   };
 
   return (
-    <div className={`voice-controls ${className}`}>
+    <div className={`voice-controls relative ${className}`}>
       {/* Main Voice Controls */}
       <div className="flex items-center space-x-2">
         {/* Microphone Button */}
         <button
           onClick={isListening ? stopListening : startListening}
           disabled={isProcessing || (!isClient || !supportedFeatures.speechRecognition)}
-          className={`relative p-2 rounded-full transition-all duration-200 ${
-            isListening
-              ? 'bg-red-500 hover:bg-red-600 text-white animate-pulse'
-              : isProcessing
-              ? 'bg-blue-400 text-white cursor-not-allowed'
-              : 'bg-blue-500 hover:bg-blue-600 text-white disabled:bg-gray-400 disabled:cursor-not-allowed'
-          }`}
+          className={`relative p-2 rounded-lg transition-all duration-200 ${isListening
+            ? 'bg-red-500/20 text-red-500 hover:bg-red-500/30 border border-red-500/30 animate-pulse'
+            : isProcessing
+              ? 'bg-blue-500/20 text-blue-400 cursor-not-allowed border border-blue-500/30'
+              : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed'
+            }`}
           title={
             !isClient
               ? 'Loading voice features...'
               : !supportedFeatures.speechRecognition
-              ? 'Speech recognition not supported'
-              : isListening
-              ? 'Click to stop listening'
-              : 'Click to start voice input'
+                ? 'Speech recognition not supported'
+                : isListening
+                  ? 'Click to stop listening'
+                  : 'Click to start voice input'
           }
         >
           {isProcessing ? (
@@ -228,10 +264,10 @@ export default function VoiceControls({
           ) : (
             <Mic className="w-4 h-4" />
           )}
-          
+
           {/* Recording indicator */}
           {isListening && (
-            <div className="absolute -top-1 -right-1 w-3 h-3 bg-red-500 rounded-full animate-ping" />
+            <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full animate-ping" />
           )}
         </button>
 
@@ -239,19 +275,18 @@ export default function VoiceControls({
         <button
           onClick={toggleSpeaker}
           disabled={!isClient || !supportedFeatures.speechSynthesis}
-          className={`p-2 rounded-full transition-all duration-200 ${
-            isClient && isSpeakerEnabled && supportedFeatures.speechSynthesis
-              ? 'bg-green-500 hover:bg-green-600 text-white'
-              : 'bg-gray-400 text-white disabled:cursor-not-allowed'
-          }`}
+          className={`p-2 rounded-lg transition-all duration-200 ${isClient && isSpeakerEnabled && supportedFeatures.speechSynthesis
+            ? 'bg-white/5 text-green-400 border border-green-500/30 hover:bg-white/10'
+            : 'bg-white/5 text-gray-500 border border-white/10 disabled:opacity-50'
+            }`}
           title={
             !isClient
               ? 'Loading voice features...'
               : !supportedFeatures.speechSynthesis
-              ? 'Text-to-speech not supported'
-              : isSpeakerEnabled
-              ? 'AI voice enabled - click to mute'
-              : 'AI voice muted - click to enable'
+                ? 'Text-to-speech not supported'
+                : isSpeakerEnabled
+                  ? 'AI voice enabled - click to mute'
+                  : 'AI voice muted - click to enable'
           }
         >
           {isClient && isSpeakerEnabled && supportedFeatures.speechSynthesis ? (
@@ -264,39 +299,39 @@ export default function VoiceControls({
         {/* Settings Button */}
         <button
           onClick={() => setShowSettings(!showSettings)}
-          className="p-2 rounded-full bg-gray-500 hover:bg-gray-600 text-white transition-all duration-200"
+          className={`p-2 rounded-lg transition-all duration-200 ${showSettings
+            ? 'bg-purple-500/20 text-purple-400 border border-purple-500/30'
+            : 'bg-white/5 text-gray-400 border border-white/10 hover:bg-white/10'}`}
           title="Voice settings"
         >
           <Settings className="w-4 h-4" />
-        </button>
-
-        {/* Test TTS Button */}
-        <button
-          onClick={testTTS}
-          className="px-3 py-1 rounded-full bg-purple-500 hover:bg-purple-600 text-white text-xs transition-all duration-200 disabled:bg-gray-400 disabled:cursor-not-allowed"
-          title={!isClient ? "Loading..." : !supportedFeatures.speechSynthesis ? "TTS not supported" : "Test text-to-speech"}
-          disabled={!isClient || !supportedFeatures.speechSynthesis}
-        >
-          Test TTS
         </button>
       </div>
 
       {/* Interim Transcript Display */}
       {interimTranscript && (
-        <div className="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-sm text-blue-700">
-          <span className="text-xs text-blue-500">Listening: </span>
-          {interimTranscript}
+        <div className="absolute bottom-full left-0 mb-2 w-64 p-2 bg-black/90 border border-white/10 rounded-lg backdrop-blur-sm z-50">
+          <span className="text-xs text-blue-400 font-medium block mb-1">Listening...</span>
+          <p className="text-sm text-gray-300">{interimTranscript}</p>
         </div>
       )}
 
       {/* Voice Settings Panel */}
       {showSettings && (
-        <div className="mt-4 p-4 bg-white border border-gray-200 rounded-lg shadow-lg">
-          <h3 className="text-sm font-semibold mb-3 text-gray-700">Voice Settings</h3>
-          
+        <div className="absolute bottom-full left-0 mb-2 w-72 p-4 bg-[#1a1a1a] border border-white/10 rounded-xl shadow-2xl z-50">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-white">Voice Settings</h3>
+            <button
+              onClick={() => setShowSettings(false)}
+              className="text-gray-500 hover:text-white"
+            >
+              ×
+            </button>
+          </div>
+
           {/* Speech Rate */}
-          <div className="mb-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-400 mb-2">
               Speech Rate: {voiceSettings.speechRate}x
             </label>
             <input
@@ -306,13 +341,13 @@ export default function VoiceControls({
               step="0.1"
               value={voiceSettings.speechRate}
               onChange={(e) => handleVoiceSettingChange('speechRate', parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
             />
           </div>
 
           {/* Volume */}
-          <div className="mb-3">
-            <label className="block text-xs font-medium text-gray-600 mb-1">
+          <div className="mb-4">
+            <label className="block text-xs font-medium text-gray-400 mb-2">
               Volume: {Math.round(voiceSettings.speechVolume * 100)}%
             </label>
             <input
@@ -322,21 +357,21 @@ export default function VoiceControls({
               step="0.1"
               value={voiceSettings.speechVolume}
               onChange={(e) => handleVoiceSettingChange('speechVolume', parseFloat(e.target.value))}
-              className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+              className="w-full h-1 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
             />
           </div>
 
           {/* Voice Selection */}
           {availableVoices.length > 0 && (
-            <div className="mb-3">
-              <label className="block text-xs font-medium text-gray-600 mb-1">AI Voice</label>
+            <div className="mb-4">
+              <label className="block text-xs font-medium text-gray-400 mb-2">AI Voice</label>
               <select
                 value={voiceSettings.preferredVoice}
                 onChange={(e) => {
                   handleVoiceSettingChange('preferredVoice', e.target.value);
                   voiceService.setVoice(e.target.value);
                 }}
-                className="w-full text-xs border border-gray-300 rounded px-2 py-1"
+                className="w-full text-xs bg-black border border-white/10 rounded-lg px-3 py-2 text-white focus:outline-none focus:border-purple-500/50"
               >
                 <option value="female">Female (Auto)</option>
                 <option value="male">Male (Auto)</option>
@@ -353,17 +388,25 @@ export default function VoiceControls({
           )}
 
           {/* Feature Support Status */}
-          <div className="pt-2 border-t border-gray-200">
-            <p className="text-xs text-gray-500 mb-1">Browser Support:</p>
-            <div className="flex space-x-4 text-xs">
-              <span className={`flex items-center ${supportedFeatures.speechSynthesis ? 'text-green-600' : 'text-red-600'}`}>
-                {supportedFeatures.speechSynthesis ? '✓' : '✗'} Text-to-Speech
+          <div className="pt-3 border-t border-white/10">
+            <div className="flex space-x-4 text-[10px]">
+              <span className={`flex items-center ${supportedFeatures.speechSynthesis ? 'text-green-400' : 'text-red-400'}`}>
+                {supportedFeatures.speechSynthesis ? '✓' : '✗'} TTS
               </span>
-              <span className={`flex items-center ${supportedFeatures.speechRecognition ? 'text-green-600' : 'text-red-600'}`}>
-                {supportedFeatures.speechRecognition ? '✓' : '✗'} Speech Recognition
+              <span className={`flex items-center ${supportedFeatures.speechRecognition ? 'text-green-400' : 'text-red-400'}`}>
+                {supportedFeatures.speechRecognition ? '✓' : '✗'} Recognition
               </span>
             </div>
           </div>
+
+          {/* Test TTS Button */}
+          <button
+            onClick={testTTS}
+            className="w-full mt-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 text-xs text-gray-300 transition-colors border border-white/5"
+            disabled={!isClient || !supportedFeatures.speechSynthesis}
+          >
+            Test Voice Output
+          </button>
         </div>
       )}
     </div>

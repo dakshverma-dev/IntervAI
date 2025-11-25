@@ -1,11 +1,11 @@
-# 🎯 CodeSage - AI-Powered Interview Practice Platform
+# 🎯 IntervAi - AI-Powered Interview Practice Platform
 
 An interactive coding interview practice platform with AI-powered guidance, voice interaction, and real-time feedback.
 
 ## 🚀 Features
 
 ### 🤖 AI-Powered Interview Experience
-- **Interactive AI Interviewer** - CodeSage provides real-time feedback on every code execution
+- **Interactive AI Interviewer** - IntervAi provides real-time feedback on every code execution
 - **Smart Guidance** - AI guides without spoiling answers, just like a real interviewer
 - **Complexity Analysis** - Real-time analysis of algorithm complexity (O(n), O(n²), etc.)
 - **Approach Recognition** - Detects coding patterns and suggests optimizations
@@ -43,20 +43,6 @@ An interactive coding interview practice platform with AI-powered guidance, voic
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn
-- Google Gemini API key
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone https://github.com/yourusername/codesage.git
-cd codesage
-```
-
-2. **Install dependencies**
-```bash
-npm install
-```
 
 3. **Set up environment variables**
 Create a `.env.local` file in the root directory and add your Google Gemini API key:

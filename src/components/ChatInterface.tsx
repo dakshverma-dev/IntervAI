@@ -15,11 +15,11 @@ export default function ChatInterface() {
     {
       id: '1',
       type: 'assistant',
-      content: "Hello! I'm CodeSage, your AI technical interviewer. I'll help you solve this problem step by step. Feel free to think aloud as you code, and don't hesitate to ask for hints if you get stuck!",
+      content: "Hello! I'm IntervAi, your AI technical interviewer. I'll help you solve this problem step by step. Feel free to think aloud as you code, and don't hesitate to ask for hints if you get stuck!",
       timestamp: new Date()
     }
   ]);
-  
+
   const [inputMessage, setInputMessage] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -87,12 +87,11 @@ export default function ChatInterface() {
                 <Bot className="w-4 h-4 text-blue-600" />
               </div>
             )}
-            
-            <div className={`max-w-xs lg:max-w-sm px-3 py-2 rounded-lg ${
-              message.type === 'user' 
-                ? 'bg-blue-600 text-white' 
+
+            <div className={`max-w-xs lg:max-w-sm px-3 py-2 rounded-lg ${message.type === 'user'
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-900'
-            }`}>
+              }`}>
               <p className="text-sm">{message.content}</p>
               <p className="text-xs opacity-70 mt-1">
                 {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -121,7 +120,7 @@ export default function ChatInterface() {
             </div>
           </div>
         )}
-        
+
         <div ref={messagesEndRef} />
       </div>
 
