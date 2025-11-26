@@ -39,6 +39,7 @@ export default function PracticePage() {
   const [timeElapsed, setTimeElapsed] = useState(0);
   const [hintsUsed, setHintsUsed] = useState(0);
   const [codeSubmissions, setCodeSubmissions] = useState(0);
+  const [problemsCompleted, setProblemsCompleted] = useState(0);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -442,6 +443,11 @@ export default function PracticePage() {
               <div className="flex items-center space-x-2">
                 <HelpCircle className="w-4 h-4 text-blue-400" />
                 <span>{hintsUsed} Hints</span>
+              </div>
+              <div className="w-px h-4 bg-white/10"></div>
+              <div className="flex items-center space-x-2">
+                <Target className="w-4 h-4 text-indigo-400" />
+                <span>{problemsCompleted} Completed</span>
               </div>
               <div className="w-px h-4 bg-white/10"></div>
               <div className="flex items-center space-x-2">

@@ -119,7 +119,7 @@ export class VoiceService implements VoiceServiceInterface {
     autoSpeak: true,
     preferredVoice: 'Google हिन्दी', // Default fallback
     language: 'en-IN',
-    useElevenLabs: true // Enable by default
+    useElevenLabs: true // Enable ElevenLabs voice
   };
 
   constructor() {
@@ -142,8 +142,13 @@ export class VoiceService implements VoiceServiceInterface {
           };
         }
 
-        // Initialize Audio Context for ElevenLabs
-        this.audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        // Initialize Audio Context for ElevenLabs (use safe typed constructor for vendor prefixes)
+        type AudioContextConstructor = new (contextOptions?: AudioContextOptions) => AudioContext;
+        const win = window as unknown as { AudioContext?: AudioContextConstructor; webkitAudioContext?: AudioContextConstructor };
+        const AudioCtxClass = win.AudioContext || win.webkitAudioContext;
+        if (AudioCtxClass) {
+          this.audioContext = new AudioCtxClass();
+        }
       }
 
       this.initializeSpeechRecognition();
@@ -293,14 +298,19 @@ export class VoiceService implements VoiceServiceInterface {
       this.stopSpeaking();
 
       if (!this.audioContext) {
-        this.audioContext = new (window.AudioContext || (window as Window & { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
+        type AudioContextConstructor = new (contextOptions?: AudioContextOptions) => AudioContext;
+        const win = window as unknown as { AudioContext?: AudioContextConstructor; webkitAudioContext?: AudioContextConstructor };
+        const AudioCtxClass = win.AudioContext || win.webkitAudioContext;
+        if (AudioCtxClass) {
+          this.audioContext = new AudioCtxClass();
+        }
       }
 
-      const audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer);
+      const audioBuffer = await this.audioContext!.decodeAudioData(arrayBuffer);
 
-      const source = this.audioContext.createBufferSource();
+      const source = this.audioContext!.createBufferSource();
       source.buffer = audioBuffer;
-      source.connect(this.audioContext.destination);
+      source.connect(this.audioContext!.destination);
 
       this.currentSource = source;
       this.isSpeaking = true;
