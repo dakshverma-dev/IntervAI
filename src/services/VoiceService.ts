@@ -109,8 +109,8 @@ export class VoiceService implements VoiceServiceInterface {
   private currentSource: AudioBufferSourceNode | null = null;
 
   // ElevenLabs Configuration
-  private elevenLabsApiKey: string = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
-  private elevenLabsVoiceId: string = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM'; // Rachel - Natural, calm, clear
+  private elevenLabsApiKey: string = '';
+  private elevenLabsVoiceId: string = '21m00Tcm4TlvDq8ikWAM'; // Rachel - Natural, calm, clear
 
   private settings: VoiceSettings = {
     speechRate: 1.0,
@@ -124,6 +124,13 @@ export class VoiceService implements VoiceServiceInterface {
 
   constructor() {
     if (typeof window !== 'undefined') {
+      // Load environment variables from Next.js public runtime config
+      this.elevenLabsApiKey = process.env.NEXT_PUBLIC_ELEVENLABS_API_KEY || '';
+      this.elevenLabsVoiceId = process.env.NEXT_PUBLIC_ELEVENLABS_VOICE_ID || '21m00Tcm4TlvDq8ikWAM';
+      
+      console.log('🔑 ElevenLabs API Key loaded:', this.elevenLabsApiKey ? `${this.elevenLabsApiKey.substring(0, 8)}...` : 'NOT SET');
+      console.log('🎤 ElevenLabs Voice ID:', this.elevenLabsVoiceId);
+      
       this.initialize();
     }
   }

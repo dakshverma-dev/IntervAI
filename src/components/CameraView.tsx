@@ -15,9 +15,9 @@ export default function CameraView({ className = '' }: CameraViewProps) {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
-    // Auto-start camera when component mounts
-    startCamera();
-
+    // Don't auto-start camera - let user control it
+    // This prevents timeout issues on slower systems
+    
     // Cleanup on unmount
     return () => {
       stopCamera();
@@ -29,14 +29,19 @@ export default function CameraView({ className = '' }: CameraViewProps) {
       console.log('🎥 Starting camera...');
       setError('');
       
-      const stream = await navigator.mediaDevices.getUserMedia({
+      // Try with more lenient constraints first
+      const constraints = {
         video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          facingMode: 'user'
+          width: { ideal: 1280, max: 1920 },
+          height: { ideal: 720, max: 1080 },
+          facingMode: 'user',
+          frameRate: { ideal: 30, max: 30 }
         },
         audio: false
-      });
+      };
+
+      console.log('📷 Requesting camera with constraints:', constraints);
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
 
       console.log('✅ Camera stream obtained:', stream);
       streamRef.current = stream;
@@ -45,21 +50,50 @@ export default function CameraView({ className = '' }: CameraViewProps) {
         console.log('📹 Setting video source...');
         videoRef.current.srcObject = stream;
         
+        // Add a timeout for video loading
+        const playTimeout = setTimeout(() => {
+          console.warn('⚠️ Video loading timeout - trying fallback');
+          if (!isCameraOn && videoRef.current) {
+            videoRef.current.play().catch(console.error);
+          }
+        }, 3000);
+
         // Set video to play immediately
         videoRef.current.onloadedmetadata = () => {
+          clearTimeout(playTimeout);
           console.log('✅ Video metadata loaded');
           videoRef.current?.play().then(() => {
             console.log('✅ Video playing');
             setIsCameraOn(true);
           }).catch((e) => {
             console.error('❌ Video play error:', e);
-            setError('Failed to play video');
+            // Try to play anyway
+            setIsCameraOn(true);
           });
         };
+
+        // Fallback: if metadata doesn't load in time, try playing anyway
+        setTimeout(() => {
+          if (!isCameraOn && videoRef.current?.readyState >= 2) {
+            videoRef.current.play().then(() => {
+              setIsCameraOn(true);
+            }).catch(console.error);
+          }
+        }, 1500);
       }
     } catch (err) {
       console.error('❌ Error accessing camera:', err);
-      setError('Could not access camera. Please allow camera permissions and try again.');
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      
+      if (errorMessage.includes('NotAllowedError') || errorMessage.includes('Permission')) {
+        setError('Camera permission denied. Please allow camera access in your browser settings.');
+      } else if (errorMessage.includes('NotFoundError')) {
+        setError('No camera found. Please connect a camera and try again.');
+      } else if (errorMessage.includes('AbortError') || errorMessage.includes('Timeout')) {
+        setError('Camera startup timeout. Click Retry to try again.');
+      } else {
+        setError('Could not access camera. Please check permissions and try again.');
+      }
       setIsCameraOn(false);
     }
   };
@@ -146,13 +180,14 @@ export default function CameraView({ className = '' }: CameraViewProps) {
           {!isCameraOn && (
             <div className="absolute inset-0 w-full h-full flex flex-col items-center justify-center text-gray-400 bg-gradient-to-br from-gray-900 to-black">
               <Camera className="w-6 h-6 mb-1 opacity-40" />
+              <button
+                onClick={startCamera}
+                className="mt-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-white text-[10px] font-medium transition-colors"
+              >
+                {error ? 'Retry' : 'Start Camera'}
+              </button>
               {error && (
-                <button
-                  onClick={startCamera}
-                  className="mt-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 rounded text-white text-[10px] font-medium transition-colors"
-                >
-                  Retry
-                </button>
+                <p className="mt-1 text-[9px] text-red-400 text-center px-2">{error}</p>
               )}
             </div>
           )}
