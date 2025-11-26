@@ -234,7 +234,25 @@ export class VoiceService implements VoiceServiceInterface {
 
     // Resume AudioContext if suspended (browser policy)
     if (this.audioContext && this.audioContext.state === 'suspended') {
-      await this.audioContext.resume();
+      try {
+        await this.audioContext.resume();
+        this.log('✅ AudioContext resumed');
+      } catch (error) {
+        console.warn('⚠️ Failed to resume AudioContext:', error);
+      }
+    }
+
+    // Test speech synthesis with user interaction
+    if (this.synthesis) {
+      try {
+        // Try to speak an empty utterance to "unlock" speech synthesis
+        const testUtterance = new SpeechSynthesisUtterance('');
+        this.synthesis.speak(testUtterance);
+        this.synthesis.cancel();
+        this.log('✅ Speech synthesis unlocked');
+      } catch (error) {
+        console.warn('⚠️ Speech synthesis test failed:', error);
+      }
     }
 
     if (this.voices.length === 0 && this.synthesis) {
@@ -423,6 +441,13 @@ export class VoiceService implements VoiceServiceInterface {
         console.error('❌ TTS Error:', event);
         clearTimeout(timeoutId);
         this.isSpeaking = false;
+        
+        // Handle 'not-allowed' error specifically
+        if (event.error === 'not-allowed') {
+          console.warn('⚠️ Speech synthesis blocked by browser. User interaction required.');
+          // Try to unlock by calling ensureReady on next user interaction
+        }
+        
         if (event.error === 'interrupted' || event.error === 'canceled') {
           resolve();
         } else {

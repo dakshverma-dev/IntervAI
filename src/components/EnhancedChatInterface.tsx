@@ -50,7 +50,7 @@ export default function EnhancedChatInterface({
   const [isHandsFreeMode, setIsHandsFreeMode] = useState(false);
   const [isAiSpeaking, setIsAiSpeaking] = useState(false);
 
-  // Initialize voice service on mount
+  // Initialize voice service on mount and on user interaction
   useEffect(() => {
     const initializeVoice = async () => {
       try {
@@ -63,6 +63,18 @@ export default function EnhancedChatInterface({
     };
 
     initializeVoice();
+
+    // Add click listener to ensure voice is unlocked on first user interaction
+    const handleUserInteraction = async () => {
+      await voiceService.ensureReady();
+      document.removeEventListener('click', handleUserInteraction);
+    };
+    
+    document.addEventListener('click', handleUserInteraction);
+    
+    return () => {
+      document.removeEventListener('click', handleUserInteraction);
+    };
   }, []);
 
   // Initial greeting effect
@@ -117,8 +129,14 @@ export default function EnhancedChatInterface({
         setIsAiSpeaking(true);
         voiceService.speakText(aiCodeResponse, {
           onEnd: () => setIsAiSpeaking(false),
-          onError: () => setIsAiSpeaking(false)
-        }).catch(() => setIsAiSpeaking(false));
+          onError: (error) => {
+            console.warn('⚠️ TTS failed for code response:', error);
+            setIsAiSpeaking(false);
+          }
+        }).catch((error) => {
+          console.warn('⚠️ TTS error for code response:', error);
+          setIsAiSpeaking(false);
+        });
       }
 
       onCodeResponseHandled(); // Clear the response
@@ -135,8 +153,14 @@ export default function EnhancedChatInterface({
           setIsAiSpeaking(true);
           voiceService.speakText(lastMessage.content, {
             onEnd: () => setIsAiSpeaking(false),
-            onError: () => setIsAiSpeaking(false)
-          }).catch(() => setIsAiSpeaking(false));
+            onError: (error) => {
+              console.warn('⚠️ TTS failed for message:', error);
+              setIsAiSpeaking(false);
+            }
+          }).catch((error) => {
+            console.warn('⚠️ TTS error for message:', error);
+            setIsAiSpeaking(false);
+          });
         }
       }
     }
