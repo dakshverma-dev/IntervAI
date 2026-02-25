@@ -1,28 +1,28 @@
-# 🎯 IntervAi - AI-Powered Interview Practice Platform
+# IntervAi - AI-Powered Interview Practice Platform
 
 An interactive coding interview practice platform with AI-powered guidance, voice interaction, and real-time feedback.
 
-## 🚀 Features
+##  Features
 
-### 🤖 AI-Powered Interview Experience
+### AI-Powered Interview Experience
 - **Interactive AI Interviewer** - IntervAi provides real-time feedback on every code execution
 - **Smart Guidance** - AI guides without spoiling answers, just like a real interviewer
 - **Complexity Analysis** - Real-time analysis of algorithm complexity (O(n), O(n²), etc.)
 - **Approach Recognition** - Detects coding patterns and suggests optimizations
 
-### 🗣️ Voice Integration
+### Voice Integration
 - **Text-to-Speech** - AI speaks feedback naturally with human-like voice
 - **Speech Recognition** - Voice input for hands-free interaction
 - **Browser Compatibility** - Works across Chrome, Safari, Edge, and Firefox
 - **Enhanced Error Recovery** - Multiple fallback mechanisms for reliable voice functionality
 
-### 💻 Advanced Code Editor
+### Advanced Code Editor
 - **Monaco Editor** - VS Code-like editing experience
 - **Syntax Highlighting** - Full Python syntax support
 - **Real-time Analysis** - Code complexity and pattern detection
 - **Multi-problem Support** - Progressive difficulty with 3+ coding challenges
 
-### 📊 Interview Metrics
+### Interview Metrics
 - **Time Tracking** - Monitor coding session duration
 - **Attempt Counter** - Track code execution attempts
 - **Hint Usage** - Optional hints with usage tracking
@@ -38,7 +38,7 @@ An interactive coding interview practice platform with AI-powered guidance, voic
 - **Icons:** Lucide React
 - **Build Tool:** Turbopack
 
-## 🚀 Getting Started
+## Getting Started
 
 ### Prerequisites
 - Node.js 18+ 
@@ -58,7 +58,7 @@ npm run dev
 5. **Open in browser**
 Navigate to [http://localhost:3000](http://localhost:3000)
 
-## 🎮 How to Use
+##  How to Use
 
 ### 1. Start Interview Session
 - Click "Start Practice Session" on the homepage
@@ -77,14 +77,14 @@ Navigate to [http://localhost:3000](http://localhost:3000)
 - **Voice Input**: Click microphone for voice-to-text input
 - **Settings**: Adjust voice speed, pitch, and volume
 
-## 🎯 Coding Problems
+##  Coding Problems
 
 ### Current Problems
 1. **Find Duplicates** (Easy) - Array manipulation and hash sets
 2. **Two Sum** (Medium) - Hash map optimization techniques  
 3. **Valid Parentheses** (Medium) - Stack data structure patterns
 
-## 🔊 Voice Technology
+##  Voice Technology
 
 ### Text-to-Speech Features
 - **Natural Voices** - Prefers high-quality neural voices
@@ -92,7 +92,7 @@ Navigate to [http://localhost:3000](http://localhost:3000)
 - **Browser Compatibility** - Comprehensive fallback mechanisms
 - **Error Recovery** - Multiple TTS approaches for reliability
 
-## 📱 Browser Support
+##  Browser Support
 
 ### Fully Supported
 - **Chrome 90+** - Complete feature support
