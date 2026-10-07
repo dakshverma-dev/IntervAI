@@ -1,125 +1,73 @@
-# IntervAi - AI-Powered Interview Practice Platform
+# IntervAI
 
-An interactive coding interview practice platform with AI-powered guidance, voice interaction, and real-time feedback.
+**A coding interview you can talk through.**
 
-##  Features
+IntervAI is an interview-practice prototype combining a Monaco editor, conversational guidance, browser voice controls, and session metrics. It was built for Innov8 3.0 at IIT Delhi.
 
-### AI-Powered Interview Experience
-- **Interactive AI Interviewer** - IntervAi provides real-time feedback on every code execution
-- **Smart Guidance** - AI guides without spoiling answers, just like a real interviewer
-- **Complexity Analysis** - Real-time analysis of algorithm complexity (O(n), O(n²), etc.)
-- **Approach Recognition** - Detects coding patterns and suggests optimizations
+[Open demo](https://interv-ai-beta.vercel.app) · [Run locally](#run-locally) · [Voice implementation notes](VOICE_FEATURES.md)
 
-### Voice Integration
-- **Text-to-Speech** - AI speaks feedback naturally with human-like voice
-- **Speech Recognition** - Voice input for hands-free interaction
-- **Browser Compatibility** - Works across Chrome, Safari, Edge, and Firefox
-- **Enhanced Error Recovery** - Multiple fallback mechanisms for reliable voice functionality
+## What the experience includes
 
-### Advanced Code Editor
-- **Monaco Editor** - VS Code-like editing experience
-- **Syntax Highlighting** - Full Python syntax support
-- **Real-time Analysis** - Code complexity and pattern detection
-- **Multi-problem Support** - Progressive difficulty with 3+ coding challenges
+- Python problems with an editor and an AI conversation alongside it.
+- Feedback on the submitted code and hints during the session.
+- Speech synthesis and recognition where supported by the browser.
+- Session timing, submission counts, and heuristic complexity indicators.
+- Gemini-backed responses, an OpenRouter path, and local demo responses.
 
-### Interview Metrics
-- **Time Tracking** - Monitor coding session duration
-- **Attempt Counter** - Track code execution attempts
-- **Hint Usage** - Optional hints with usage tracking
-- **Progress Analytics** - Performance metrics and feedback
+## What “Run Code” currently does
 
-## 🛠️ Tech Stack
+The practice page inspects the source text and asks the feedback service to respond. It **does not run a Python interpreter or execute problem test cases**. Timing and complexity displays are heuristic or simulated.
 
-- **Framework:** Next.js 15 with TypeScript
-- **Styling:** Tailwind CSS
-- **AI Integration:** Google Gemini 2.5-flash
-- **Voice APIs:** Web Speech API (SpeechSynthesis + SpeechRecognition)
-- **Code Editor:** Monaco Editor (VS Code editor component)
-- **Icons:** Lucide React
-- **Build Tool:** Turbopack
+For the later project with actual in-browser Python execution, see [AI Interviewer](https://github.com/dakshverma-dev/Ai-Interviewer).
 
-## Getting Started
+## Run locally
 
-### Prerequisites
-- Node.js 18+ 
-- npm or yarn
+Use Node.js 20 or later and npm.
 
-3. **Set up environment variables**
-Create a `.env.local` file in the root directory and add your Google Gemini API key:
-```env
-NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key_here
-```
-
-4. **Run the development server**
 ```bash
+git clone https://github.com/dakshverma-dev/IntervAI.git
+cd IntervAI
+npm ci
 npm run dev
 ```
 
-5. **Open in browser**
-Navigate to [http://localhost:3000](http://localhost:3000)
+Open [localhost:3000](http://localhost:3000). Without provider configuration, the application can use its demo responses.
 
-##  How to Use
+To enable the Gemini path, create `.env.local`:
 
-### 1. Start Interview Session
-- Click "Start Practice Session" on the homepage
-- Choose from available coding problems
-- Begin with the first problem
+```env
+NEXT_PUBLIC_GEMINI_API_KEY=your_gemini_api_key
+```
 
-### 2. Coding Experience
-- Write your solution in the Monaco editor
-- Click "Run Code" for AI feedback after each attempt
-- AI provides encouraging guidance without spoiling answers
-- Use voice controls for hands-free interaction
+The service also reads `NEXT_PUBLIC_OPENROUTER_API_KEY` for its alternative provider path. These `NEXT_PUBLIC_` values are included in browser code; the current provider integration is intended for local experimentation. A public deployment needs server-side credential handling.
 
-### 3. Voice Features
-- **Test TTS**: Click "Test TTS" button to verify voice functionality
-- **AI Speaking**: AI automatically speaks feedback (can be toggled)
-- **Voice Input**: Click microphone for voice-to-text input
-- **Settings**: Adjust voice speed, pitch, and volume
+## Explore it
 
-##  Coding Problems
+1. Start a practice session.
+2. Write an approach in the editor and submit it for feedback.
+3. Ask a follow-up question or request a hint.
+4. Try voice controls in a browser that supports them.
+5. Review the session indicators.
 
-### Current Problems
-1. **Find Duplicates** (Easy) - Array manipulation and hash sets
-2. **Two Sum** (Medium) - Hash map optimization techniques  
-3. **Valid Parentheses** (Medium) - Stack data structure patterns
+Voice support varies by browser and permissions. Text interaction remains the baseline.
 
-##  Voice Technology
+## Source tour
 
-### Text-to-Speech Features
-- **Natural Voices** - Prefers high-quality neural voices
-- **Human-like Speech** - Enhanced text cleaning for natural flow
-- **Browser Compatibility** - Comprehensive fallback mechanisms
-- **Error Recovery** - Multiple TTS approaches for reliability
+| File or directory | Responsibility |
+| --- | --- |
+| [Practice page](src/app/practice/page.tsx) | Session flow and heuristic code analysis |
+| [AI service](src/services/AIService.ts) | Provider requests and demo responses |
+| [Voice service](src/services/VoiceService.ts) | Browser speech integration |
+| [Code editor](src/components/CodeEditor.tsx) | Monaco configuration |
+| [Problems](src/data/problems.ts) | Coding challenge content |
 
-##  Browser Support
+**Stack:** Next.js 15, React 19, TypeScript, Tailwind CSS, Monaco, and the Web Speech API.
 
-### Fully Supported
-- **Chrome 90+** - Complete feature support
-- **Edge 90+** - Full functionality
-- **Safari 14+** - TTS may require user interaction
-- **Firefox 90+** - Voice quality may vary
+## Build
 
-## 🤝 Contributing
+```bash
+npm run build
+npm run start
+```
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License.
-
-## 🙏 Acknowledgments
-
-- **Google Gemini** - AI conversation capabilities
-- **Monaco Editor** - VS Code editing experience
-- **Web Speech API** - Voice interaction technology
-- **Next.js Team** - Amazing React framework
-- **Tailwind CSS** - Utility-first styling
-
----
-
-**Built with ❤️ for coding interview success** 🎉
+The repository also provides `npm run lint`. The prototype has no production code-execution service or verified interview-scoring benchmark.
